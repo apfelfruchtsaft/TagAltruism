@@ -5,7 +5,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 
 class Model:
-    def __init__(self, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neigbhors,
+    def __init__(self, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors,
                  generations, mu, sigma, seed=None):
         self.N = N
         self.cost = cost
@@ -14,14 +14,14 @@ class Model:
         self.mutation_rate = mutation_rate
         self.min_tolerance = min_tolerance
         self.cheater_mutation_rate = cheater_mutation_rate
-        self.n_neighbors = n_neigbhors
+        self.n_neighbors = n_neighbors
         self.generations = generations
         self.mu = mu
         self.sigma = sigma
         self.seed = seed
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
-        self.cheater_tags = np.zeros(N, dtype=np.bool)
+        self.cheater_flags = np.zeros(N, dtype=np.bool)
         self.output = []
 
     def interaction(self, i, partner, fitnesses, cheater_flag, tags, tolerance,
@@ -71,7 +71,7 @@ class Model:
 
         self.tags[0, :] = child_tags
         self.tolerances[0, :] = child_tolerances
-        self.ch
+        self.cheater_flags[0, :] = child_cheater_flags
 
         for g in range(1, self.generations + 1):
 
@@ -82,7 +82,7 @@ class Model:
 
             interactions_made, interactions_attempted = 0, 0
 
-            G = nx.random_regular_graph(d=self.n_neighbors, n=self.N)
+            G = nx.circulant_graph(n=self.N, offsets=self.n_neighbors/2)
             neighbors = [list(nx.all_neighbors(G, i)) for i in range(self.N)]
 
             for i in range(self.N):
@@ -99,6 +99,7 @@ class Model:
                                                                                           tolerances, cheater_flags)
             self.tags[g-1, :] = child_tags
             self.tolerances[g-1, :] = child_tolerances
+            self.cheater_flags[g-1, :] = child_cheater_flags
             self.output.append([g, interactions_attempted, interactions_made, tags, tolerances, cheater_flags, fitnesses])
 
     def save(self, simulation_name, directory):
@@ -128,6 +129,7 @@ class Statistics:
                              sigma)]
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
+        self.cheater_tags = np.zeros(N, dtype=np.bool)
 
 
     def simulate(self, n_processes=-2):
@@ -156,7 +158,7 @@ if __name__ == "__main__":
                   mutation_rate=0.1,
                   min_tolerance=0,
                   cheater_mutation_rate=0, # social parasite type, no changes made
-                  n_neigbors=4, # neighbor radius = neighbors / 2, max is n - 1
+                  n_neighbors=4, # neighbor radius = neighbors / 2, max is n - 1
                   generations=1000,
                   mu=0,
                   sigma=0.01)
