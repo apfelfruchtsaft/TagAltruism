@@ -3,6 +3,7 @@ import networkx as nx
 import pandas as pd
 from tqdm import tqdm
 from joblib import Parallel, delayed
+import matplotlib.pyplot as plt
 
 class Model:
     def __init__(self, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors,
@@ -23,6 +24,7 @@ class Model:
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
         self.cheater_flags = np.zeros((generations, N), dtype=bool)
+        self.donation_rate = np.zeros(generations)
         self.output = []
 
     def interaction(self, i, partner, fitnesses, cheater_flag, tags, tolerance,
@@ -100,6 +102,7 @@ class Model:
             self.tags[g-1, :] = child_tags
             self.tolerances[g-1, :] = child_tolerances
             self.cheater_flags[g-1, :] = child_cheater_flags
+            self.donation_rate[g-1] = interactions_made / interactions_attempted
             self.output.append([g, interactions_attempted, interactions_made, tags, tolerances, cheater_flags, fitnesses])
 
     def save(self, simulation_name, directory):
@@ -108,6 +111,11 @@ class Model:
         'fitnesses')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
 
         output_df.to_csv(directory + simulation_name + '.csv', index=False)
+
+    def plot_donation_rate(self):
+        fig, ax = plt.subplots()
+        ax.plot(range(self.generations), self.donation_rate)
+        plt.show()
 
 class Statistics:
     def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu, sigma,seed=None):
@@ -130,6 +138,7 @@ class Statistics:
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
         self.cheater_tags = np.zeros(N, dtype=np.bool)
+
 
 
     def simulate(self, n_processes=-2):
@@ -167,4 +176,5 @@ if __name__ == "__main__":
     simulation_name = '05Mar2024'
 
     model.simulate()
-    model.save(simulation_name, directory)
+    model.plot_donation_rate()
+    #model.save(simulation_name, directory)
