@@ -15,13 +15,14 @@ class Model:
         self.min_tolerance = min_tolerance
         self.cheater_mutation_rate = cheater_mutation_rate
         self.n_neighbors = n_neighbors
+        assert self.n_neighbors % 2 == 0
         self.generations = generations
         self.mu = mu
         self.sigma = sigma
         self.seed = seed
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
-        self.cheater_flags = np.zeros(N, dtype=np.bool)
+        self.cheater_flags = np.zeros((generations, N), dtype=bool)
         self.output = []
 
     def interaction(self, i, partner, fitnesses, cheater_flag, tags, tolerance,
@@ -71,7 +72,7 @@ class Model:
 
         self.tags[0, :] = child_tags
         self.tolerances[0, :] = child_tolerances
-        self.cheater_flags[0, :] = child_cheater_flags
+
 
         for g in range(1, self.generations + 1):
 
@@ -81,8 +82,7 @@ class Model:
             fitnesses = np.zeros(self.N)
 
             interactions_made, interactions_attempted = 0, 0
-
-            G = nx.circulant_graph(n=self.N, offsets=self.n_neighbors/2)
+            G = nx.circulant_graph(n=self.N, offsets=[int(self.n_neighbors/2)])
             neighbors = [list(nx.all_neighbors(G, i)) for i in range(self.N)]
 
             for i in range(self.N):
@@ -110,7 +110,7 @@ class Model:
         output_df.to_csv(directory + simulation_name + '.csv', index=False)
 
 class Statistics:
-    def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neigbors, generations, mu, sigma,seed=None):
+    def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu, sigma,seed=None):
         self.n_runs = number_of_runs
         self.N = N
         self.cost = cost
@@ -119,7 +119,7 @@ class Statistics:
         self.mutation_rate = mutation_rate
         self.min_tolerance = min_tolerance
         self.cheater_mutation_rate = cheater_mutation_rate
-        self.n_neighbors = n_neigbors
+        self.n_neighbors = n_neighbors
         self.generations = generations
         self.mu = mu
         self.sigma = sigma
