@@ -60,7 +60,7 @@ class Model:
             child_tolerance += noise
             if child_tolerance < self.min_tolerance: child_tolerance = self.min_tolerance
         if rng.random() <= self.mutation_rate:
-            child_cheater_flag = True
+            child_cheater_flag = not(child_cheater_flag)
 
             return child_tag, child_tolerance, child_cheater_flag
 
@@ -113,20 +113,21 @@ class Model:
         output_df.to_csv(directory + simulation_name + '.csv', index=False)
 
     def plot_donation_rate(self):
-        fig, ax = plt.subplots()
-        ax.plot(range(self.generations), self.donation_rate)
-        ax.set_ylim((0, 1))
-        ax.grid(True)
-
+        fig, axs = plt.subplots(2)
+        axs[0].plot(range(self.generations), self.donation_rate, label=r'Donation Rate')
+        axs[0].set_ylim((0, 1))
+        axs[0].grid(True)
+        axs[1].plot(range(self.generations), np.count_nonzero(self.cheater_flags, axis=1)/self.N, label=r'Cheater Ratio')
+        axs[1].grid(True)
+        axs[1].set_ylim((0, 1))
+        axs[0].legend()
+        axs[1].legend()
         plt.show()
 
-    def plot_tag_distribution(self, generation):
-        fig, ax = plt.subplots()
-        ax.scatter(range(self.N), self.tags[generation])
 
 
 class Statistics:
-    def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu, sigma,seed=None):
+    def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu, sigma,):
         self.n_runs = number_of_runs
         self.N = N
         self.cost = cost
@@ -139,13 +140,12 @@ class Statistics:
         self.generations = generations
         self.mu = mu
         self.sigma = sigma
-        self.seed = seed
         self.output = []
-        self.models = [Model(N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neigbors, generations, mu,
+        self.models = [Model(N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu,
                              sigma)]
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
-        self.cheater_tags = np.zeros(N, dtype=np.bool)
+        self.cheater_tags = np.zeros(N, dtype=bool)
 
 
 
@@ -164,8 +164,12 @@ class Statistics:
         self.models = Parallel(n_jobs=n_processes)(
             delayed(run_sim)(model) for model in tqdm(self.models, leave=False))
 
-        for model in self.models:
-            self.output.append(model.output)
+    def save(self):
+        run =0
+        output_df = pd.DataFrame(model.output.append(run), columns=(
+                'generation', 'interactions_attempted', 'interactions_made', 'tags', 'tolerances', 'cheater_flags',
+                'fitnesses', 'simulation_number')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
+        output_df.to_csv(directory + simulation_name + '.csv', index=False)
 
 if __name__ == "__main__":
     model = Model(N=90,
@@ -176,13 +180,28 @@ if __name__ == "__main__":
                   min_tolerance=-10E-6,
                   cheater_mutation_rate=0.01, # social parasite type, no changes made
                   n_neighbors=2, # neighbor radius = neighbors / 2, max is n - 1
-                  generations=2_000,
+                  generations=1_00,
                   mu=0,
                   sigma=0.01)
 
     directory = './'
     simulation_name = '05Mar2024'
 
-    model.simulate()
-    model.plot_donation_rate()
+    #model.simulate()
+    #model.plot_donation_rate()
     #model.save(simulation_name, directory)
+
+    statistics = Statistics(number_of_runs=2,
+            N=90,
+                  cost=0.1,
+                  benefit=1,
+                  pairings=9,
+                  mutation_rate=0.01,
+                  min_tolerance=-10E-6,
+                  cheater_mutation_rate=0.01,  # social parasite type, no changes made
+                  n_neighbors=2,  # neighbor radius = neighbors / 2, max is n - 1
+                  generations=1_0,
+                  mu=0,
+                  sigma=0.01)
+    statistics.simulate()
+    statistics.save()
