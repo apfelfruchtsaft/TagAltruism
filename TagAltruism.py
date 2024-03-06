@@ -84,8 +84,9 @@ class Model:
             fitnesses = np.zeros(self.N)
 
             interactions_made, interactions_attempted = 0, 0
-            G = nx.circulant_graph(n=self.N, offsets=[int(self.n_neighbors/2)])
+            G = nx.circulant_graph(n=self.N, offsets=[i for i in range(1,int(self.n_neighbors/2))])
             neighbors = [list(nx.all_neighbors(G, i)) for i in range(self.N)]
+
 
             for i in range(self.N):
                 for p in range(self.pairings):
@@ -142,7 +143,7 @@ class Statistics:
         self.sigma = sigma
         self.output = []
         self.models = [Model(N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu,
-                             sigma)]
+                             sigma) for _ in range(number_of_runs)]
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
         self.cheater_tags = np.zeros(N, dtype=bool)
@@ -165,11 +166,13 @@ class Statistics:
             delayed(run_sim)(model) for model in tqdm(self.models, leave=False))
 
     def save(self):
-        run =0
-        output_df = pd.DataFrame(model.output.append(run), columns=(
+        for model in self.models:
+            output_df = pd.DataFrame(model.output, columns=(
                 'generation', 'interactions_attempted', 'interactions_made', 'tags', 'tolerances', 'cheater_flags',
-                'fitnesses', 'simulation_number')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
-        output_df.to_csv(directory + simulation_name + '.csv', index=False)
+                'fitnesses')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
+
+            output_df.to_csv(directory + simulation_name + '.csv', index=False, mode='a')
+    def mean_donation_rate(self, last_):
 
 if __name__ == "__main__":
     model = Model(N=90,
@@ -190,6 +193,7 @@ if __name__ == "__main__":
     #model.simulate()
     #model.plot_donation_rate()
     #model.save(simulation_name, directory)
+
 
     statistics = Statistics(number_of_runs=2,
             N=90,
