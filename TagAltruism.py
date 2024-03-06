@@ -54,13 +54,14 @@ class Model:
 
         if rng.random() < self.mutation_rate:
             child_tag = rng.random()
+
+        if rng.random() < self.mutation_rate:
             noise = rng.normal(self.mu, self.sigma)
             child_tolerance += noise
             if child_tolerance < self.min_tolerance: child_tolerance = self.min_tolerance
-            if rng.random() <= self.cheater_mutation_rate:
-                child_cheater_flag = True
-            else:
-                child_cheater_flag = False
+        if rng.random() <= self.mutation_rate:
+            child_cheater_flag = True
+
             return child_tag, child_tolerance, child_cheater_flag
 
         return child_tag, child_tolerance, child_cheater_flag
@@ -76,8 +77,7 @@ class Model:
         self.tolerances[0, :] = child_tolerances
 
 
-        for g in range(1, self.generations + 1):
-
+        for g in tqdm(range(1, self.generations + 1)):
             tags = child_tags.copy()
             tolerances = child_tolerances.copy()
             cheater_flags = child_cheater_flags.copy()
@@ -115,7 +115,15 @@ class Model:
     def plot_donation_rate(self):
         fig, ax = plt.subplots()
         ax.plot(range(self.generations), self.donation_rate)
+        ax.set_ylim((0, 1))
+        ax.grid(True)
+
         plt.show()
+
+    def plot_tag_distribution(self, generation):
+        fig, ax = plt.subplots()
+        ax.scatter(range(self.N), self.tags[generation])
+
 
 class Statistics:
     def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu, sigma,seed=None):
@@ -160,15 +168,15 @@ class Statistics:
             self.output.append(model.output)
 
 if __name__ == "__main__":
-    model = Model(N=100,
-                  cost=1.0,
-                  benefit=10,
-                  pairings=3,
-                  mutation_rate=0.1,
-                  min_tolerance=0,
-                  cheater_mutation_rate=0, # social parasite type, no changes made
-                  n_neighbors=4, # neighbor radius = neighbors / 2, max is n - 1
-                  generations=1000,
+    model = Model(N=90,
+                  cost=0.1,
+                  benefit=1,
+                  pairings=9,
+                  mutation_rate=0.01,
+                  min_tolerance=-10E-6,
+                  cheater_mutation_rate=0.01, # social parasite type, no changes made
+                  n_neighbors=2, # neighbor radius = neighbors / 2, max is n - 1
+                  generations=2_000,
                   mu=0,
                   sigma=0.01)
 
