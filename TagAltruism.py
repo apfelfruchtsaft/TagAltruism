@@ -188,8 +188,6 @@ class Statistics:
 def parameter_sweep_pairings(N: int, cost: float, benefit: float, max_pairings: int, mutation_rate: float,
                              n_neighbors: int, generations: int, cutoff: int, min_tolrance=-10E-6, mu=0, sigma=0.01):
     pairings = np.arange(1, max_pairings+1)
-    mean_donation_rates = np.zeros(len(pairings))
-    stdvs_donation_rate = np.zeros(len(pairings))
     def run(p):
         model = Model(N=N,
                       cost=cost,
@@ -203,37 +201,44 @@ def parameter_sweep_pairings(N: int, cost: float, benefit: float, max_pairings: 
                       mu=mu,
                       sigma=sigma)
         model.simulate()
-        return model.mean_donation_rate(cutoff)
+        return model.donation_rates[cutoff:]
 
-    mean_donation_rates, stdvs_donation_rate = np.array(Parallel(n_jobs=-1)(
-            delayed(run)(p) for p in tqdm(pairings))).transpose()
+    donation_rates_time_series = np.array(Parallel(n_jobs=-1)(
+            delayed(run)(p) for p in pairings)).transpose()
+    print(np.array(donation_rates_time_series).transpose()[0:5].shape)
     #mean_donation_rates[p-1], stdvs_donation_rate[p-1] = model.mean_donation_rate(cutoff)
+    mean_donation_rates = np.mean(donation_rates_time_series, axis=0)
+    assert len(mean_donation_rates) == len(pairings)
+    stdvs_donation_rate = np.std(donation_rates_time_series, axis=0)
+    assert len(stdvs_donation_rate) == len(pairings)
+    fig, axs = plt.subplots(2, 2)
 
-    fig, axs = plt.subplots(2, 1)
-    print(mean_donation_rates)
-    axs[0].plot(pairings, mean_donation_rates, color='k')
-    axs[0].scatter(pairings, mean_donation_rates, color='k')
-    axs[0].plot(pairings, mean_donation_rates + stdvs_donation_rate, color='tab:blue', ls='--')
-    axs[0].plot(pairings, mean_donation_rates - stdvs_donation_rate, color='tab:blue', ls='--')
-    axs[0].set_ylim((0, .4))
-    axs[0].grid(True)
-    axs[0].set_ylabel('Mean Donation Rate')
-    axs[0].set_title(f'N={N}, c={cost}, b = {benefit}, m={mutation_rate},R={int(0.5*n_neighbors)} T_min={min_tolrance}, g={generations}, cutoff={cutoff}',
+    axs[0, 0].plot(pairings, mean_donation_rates, color='k')
+    axs[0, 0].scatter(pairings, mean_donation_rates, color='k')
+    #axs[0].plot(pairings, mean_donation_rates + stdvs_donation_rate, color='tab:blue', ls='--')
+    #axs[0].plot(pairings, mean_donation_rates - stdvs_donation_rate, color='tab:blue', ls='--')
+    #axs[0].set_ylim((0, .4))
+    axs[0, 0].grid(True)
+    axs[0, 0].set_ylabel('Mean Donation Rate')
+    axs[0, 0].set_title(f'N={N}, c={cost}, b = {benefit}, m={mutation_rate},R={int(0.5*n_neighbors)} T_min={min_tolrance}, g={generations}, cutoff={cutoff}',
                  fontsize=10)
-    axs[1].plot(pairings, stdvs_donation_rate, color='k')
-    axs[1].scatter(pairings, stdvs_donation_rate, color='k')
-    axs[1].set_xlabel('Pairings')
-    axs[1].set_ylabel('StDv of Mean Donation Rate')
-    axs[1].grid(True)
-
+    axs[1, 0].plot(pairings, stdvs_donation_rate, color='k')
+    axs[1, 0].scatter(pairings, stdvs_donation_rate, color='k')
+    axs[1, 0].set_xlabel('Pairings')
+    axs[1, 0].set_ylabel('StDv of Mean Donation Rate')
+    axs[1, 0].grid(True)
+    jump1 = [np.array(donation_rates_time_series).transpose()[i] for i in [8,9,10]]
+    axs[0, 1].violinplot(jump1)
+    jump2 = [np.array(donation_rates_time_series).transpose()[i] for i in [18, 19, 20]]
+    axs[0, 2].violinplot(jump2)
     plt.show()
 
 
 
 if __name__ == "__main__":
     pairings = np.arange(1, 15)
-    parameter_sweep_pairings(N=90, cost=0.1, benefit=1, max_pairings=30, mutation_rate=0.01, n_neighbors=2,
-                             generations=5_000, cutoff=1_000)
+    parameter_sweep_pairings(N=90, cost=0.1, benefit=1, max_pairings=25, mutation_rate=0.01, n_neighbors=2,
+                             generations=8_0, cutoff=1_0)
 
 
     model = Model(N=90,
