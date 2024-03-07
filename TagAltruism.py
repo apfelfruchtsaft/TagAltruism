@@ -5,6 +5,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 
+
 class Model:
     def __init__(self, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors,
                  generations, mu, sigma, seed=None):
@@ -24,7 +25,7 @@ class Model:
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
         self.cheater_flags = np.zeros((generations, N), dtype=bool)
-        self.donation_rate = np.zeros(generations)
+        self.donation_rates = np.zeros(generations)
         self.output = []
 
     def interaction(self, i, partner, fitnesses, cheater_flag, tags, tolerance,
@@ -60,7 +61,7 @@ class Model:
             child_tolerance += noise
             if child_tolerance < self.min_tolerance: child_tolerance = self.min_tolerance
         if rng.random() <= self.mutation_rate:
-            child_cheater_flag = not(child_cheater_flag)
+            child_cheater_flag = not (child_cheater_flag)
 
             return child_tag, child_tolerance, child_cheater_flag
 
@@ -76,7 +77,6 @@ class Model:
         self.tags[0, :] = child_tags
         self.tolerances[0, :] = child_tolerances
 
-
         for g in tqdm(range(1, self.generations + 1)):
             tags = child_tags.copy()
             tolerances = child_tolerances.copy()
@@ -84,43 +84,46 @@ class Model:
             fitnesses = np.zeros(self.N)
 
             interactions_made, interactions_attempted = 0, 0
-            G = nx.circulant_graph(n=self.N, offsets=[i+1 for i in range(int(self.n_neighbors/2))])
+            G = nx.circulant_graph(n=self.N, offsets=[i + 1 for i in range(int(self.n_neighbors / 2))])
             neighbors = [list(nx.all_neighbors(G, i)) for i in range(self.N)]
-            print(neighbors)
-
-
 
             for i in range(self.N):
                 for p in range(self.pairings):
                     partner = rng.choice(neighbors[i])
                     fitnesses, interactions_attempted, interactions_made = self.interaction(i, partner, fitnesses,
-                                                                                       cheater_flags[i], tags,
-                                                                                       tolerances[i],
-                                                                                       interactions_attempted,
-                                                                                       interactions_made)
+                                                                                            cheater_flags[i], tags,
+                                                                                            tolerances[i],
+                                                                                            interactions_attempted,
+                                                                                            interactions_made)
             for i in range(self.N):
                 mate = rng.choice(neighbors[i])
                 child_tags[i], child_tolerances[i], child_cheater_flags[i] = self.reproduction(i, mate, fitnesses, tags,
-                                                                                          tolerances, cheater_flags)
-            self.tags[g-1, :] = child_tags
-            self.tolerances[g-1, :] = child_tolerances
-            self.cheater_flags[g-1, :] = child_cheater_flags
-            self.donation_rate[g-1] = interactions_made / interactions_attempted
-            self.output.append([g, interactions_attempted, interactions_made, tags, tolerances, cheater_flags, fitnesses])
+                                                                                               tolerances,
+                                                                                               cheater_flags)
+            self.tags[g - 1, :] = child_tags
+            self.tolerances[g - 1, :] = child_tolerances
+            self.cheater_flags[g - 1, :] = child_cheater_flags
+            self.donation_rates[g - 1] = interactions_made / interactions_attempted
+            self.output.append(
+                [g, interactions_attempted, interactions_made, tags, tolerances, cheater_flags, fitnesses])
 
     def save(self, simulation_name, directory):
         output_df = pd.DataFrame(self.output, columns=(
-        'generation', 'interactions_attempted', 'interactions_made', 'tags', 'tolerances', 'cheater_flags',
-        'fitnesses')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
+            'generation', 'interactions_attempted', 'interactions_made', 'tags', 'tolerances', 'cheater_flags',
+            'fitnesses')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
 
         output_df.to_csv(directory + simulation_name + '.csv', index=False)
 
+    def mean_donation_rate(self, cutoff):
+        return np.mean(self.donation_rates[cutoff:]), np.std(self.donation_rates[cutoff:])
+
     def plot_donation_rate(self):
         fig, axs = plt.subplots(2)
-        axs[0].plot(range(self.generations), self.donation_rate, label=r'Donation Rate')
+        axs[0].plot(range(self.generations), self.donation_rates, label=r'Donation Rate')
         axs[0].set_ylim((0, 1))
         axs[0].grid(True)
-        axs[1].plot(range(self.generations), np.count_nonzero(self.cheater_flags, axis=1)/self.N, label=r'Cheater Ratio')
+        axs[1].plot(range(self.generations), np.count_nonzero(self.cheater_flags, axis=1) / self.N,
+                    label=r'Cheater Ratio')
         axs[1].grid(True)
         axs[1].set_ylim((0, 1))
         axs[0].legend()
@@ -128,9 +131,9 @@ class Model:
         plt.show()
 
 
-
 class Statistics:
-    def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu, sigma,):
+    def __init__(self, number_of_runs, N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate,
+                 n_neighbors, generations, mu, sigma, ):
         self.n_runs = number_of_runs
         self.N = N
         self.cost = cost
@@ -144,13 +147,13 @@ class Statistics:
         self.mu = mu
         self.sigma = sigma
         self.output = []
-        self.models = [Model(N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors, generations, mu,
-                             sigma) for _ in range(number_of_runs)]
+        self.models = [
+            Model(N, cost, benefit, pairings, mutation_rate, min_tolerance, cheater_mutation_rate, n_neighbors,
+                  generations, mu,
+                  sigma) for _ in range(number_of_runs)]
         self.tags = np.zeros((generations, N))
         self.tolerances = np.zeros((generations, N))
         self.cheater_tags = np.zeros(N, dtype=bool)
-
-
 
     def simulate(self, n_processes=-2):
         """
@@ -160,6 +163,7 @@ class Statistics:
                 ----------
                 n_proceses: int Number of processes to be started simultaneously Default: Use all but one
         """
+
         def run_sim(model):
             model.simulate()
             return model
@@ -174,44 +178,79 @@ class Statistics:
                 'fitnesses')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
 
             output_df.to_csv(directory + simulation_name + '.csv', index=False, mode='a')
+
     def mean_donation_rate(self, last_n_generations):
         mean = 0
         for model in self.models:
-            mean += model.donation_rate[-last_n_generations:]
+            mean += model.donation_rates[-last_n_generations:]
         return mean
 
+def parameter_sweep_pairings(N: int, cost: float, benefit: float, max_pairings: int, mutation_rate: float,
+                             n_neighbors: int, generations: int, cutoff: int, min_tolrance=-10E-6, mu=0, sigma=0.01):
+    pairings = np.arange(1, max_pairings+1)
+    mean_donation_rates = np.zeros(len(pairings))
+    stdvs_donation_rate = np.zeros(len(pairings))
+    def run(p):
+        model = Model(N=N,
+                      cost=cost,
+                      benefit=benefit,
+                      pairings=p,
+                      mutation_rate=mutation_rate,
+                      min_tolerance=min_tolrance,
+                      cheater_mutation_rate=1,  # social parasite type, no changes made
+                      n_neighbors=n_neighbors,  # neighbor radius = neighbors / 2, max is n - 1
+                      generations=generations,
+                      mu=mu,
+                      sigma=sigma)
+        model.simulate()
+        return model.mean_donation_rate(cutoff)
+
+    mean_donation_rates, stdvs_donation_rate = np.array(Parallel(n_jobs=-1)(
+            delayed(run)(p) for p in tqdm(pairings))).transpose()
+    #mean_donation_rates[p-1], stdvs_donation_rate[p-1] = model.mean_donation_rate(cutoff)
+
+    fig, axs = plt.subplots(2, 1)
+    print(mean_donation_rates)
+    axs[0].plot(pairings, mean_donation_rates, color='k')
+    axs[0].scatter(pairings, mean_donation_rates, color='k')
+    axs[0].plot(pairings, mean_donation_rates + stdvs_donation_rate, color='tab:blue', ls='--')
+    axs[0].plot(pairings, mean_donation_rates - stdvs_donation_rate, color='tab:blue', ls='--')
+    axs[0].set_ylim((0, .4))
+    axs[0].grid(True)
+    axs[0].set_ylabel('Mean Donation Rate')
+    axs[0].set_title(f'N={N}, c={cost}, b = {benefit}, m={mutation_rate},R={int(0.5*n_neighbors)} T_min={min_tolrance}, g={generations}, cutoff={cutoff}',
+                 fontsize=10)
+    axs[1].plot(pairings, stdvs_donation_rate, color='k')
+    axs[1].scatter(pairings, stdvs_donation_rate, color='k')
+    axs[1].set_xlabel('Pairings')
+    axs[1].set_ylabel('StDv of Mean Donation Rate')
+    axs[1].grid(True)
+
+    plt.show()
+
+
+
 if __name__ == "__main__":
+    pairings = np.arange(1, 15)
+    parameter_sweep_pairings(N=90, cost=0.1, benefit=1, max_pairings=30, mutation_rate=0.01, n_neighbors=2,
+                             generations=5_000, cutoff=1_000)
+
+
     model = Model(N=90,
-                  cost=0.1,
-                  benefit=1,
-                  pairings=9,
-                  mutation_rate=0.01,
-                  min_tolerance=-10E-6,
-                  cheater_mutation_rate=0.01, # social parasite type, no changes made
-                  n_neighbors=4, # neighbor radius = neighbors / 2, max is n - 1
-                  generations=1_00,
-                  mu=0,
-                  sigma=0.01)
+                      cost=0.1,
+                      benefit=1,
+                      pairings=12,
+                      mutation_rate=0.01,
+                      min_tolerance=-10E-6,
+                      cheater_mutation_rate=1,  # social parasite type, no changes made
+                      n_neighbors=2,  # neighbor radius = neighbors / 2, max is n - 1
+                      generations=8_000,
+                      mu=0,
+                      sigma=0.01)
 
     directory = './'
-    simulation_name = '05Mar2024'
+    simulation_name = f'test'
 
     model.simulate()
     model.plot_donation_rate()
-    model.save(simulation_name, directory)
-    exit()
-
-    statistics = Statistics(number_of_runs=2,
-            N=90,
-                  cost=0.1,
-                  benefit=1,
-                  pairings=9,
-                  mutation_rate=0.01,
-                  min_tolerance=-10E-6,
-                  cheater_mutation_rate=0.01,  # social parasite type, no changes made
-                  n_neighbors=2,  # neighbor radius = neighbors / 2, max is n - 1
-                  generations=1_0,
-                  mu=0,
-                  sigma=0.01)
-    statistics.simulate()
-    statistics.save()
+    #model.save(simulation_name, directory)
