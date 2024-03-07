@@ -84,8 +84,10 @@ class Model:
             fitnesses = np.zeros(self.N)
 
             interactions_made, interactions_attempted = 0, 0
-            G = nx.circulant_graph(n=self.N, offsets=[i for i in range(1,int(self.n_neighbors/2))])
+            G = nx.circulant_graph(n=self.N, offsets=[i+1 for i in range(int(self.n_neighbors/2))])
             neighbors = [list(nx.all_neighbors(G, i)) for i in range(self.N)]
+            print(neighbors)
+
 
 
             for i in range(self.N):
@@ -172,7 +174,11 @@ class Statistics:
                 'fitnesses')).explode(['tags', 'tolerances', 'cheater_flags', 'fitnesses'])
 
             output_df.to_csv(directory + simulation_name + '.csv', index=False, mode='a')
-    def mean_donation_rate(self, last_):
+    def mean_donation_rate(self, last_n_generations):
+        mean = 0
+        for model in self.models:
+            mean += model.donation_rate[-last_n_generations:]
+        return mean
 
 if __name__ == "__main__":
     model = Model(N=90,
@@ -182,7 +188,7 @@ if __name__ == "__main__":
                   mutation_rate=0.01,
                   min_tolerance=-10E-6,
                   cheater_mutation_rate=0.01, # social parasite type, no changes made
-                  n_neighbors=2, # neighbor radius = neighbors / 2, max is n - 1
+                  n_neighbors=4, # neighbor radius = neighbors / 2, max is n - 1
                   generations=1_00,
                   mu=0,
                   sigma=0.01)
@@ -190,10 +196,10 @@ if __name__ == "__main__":
     directory = './'
     simulation_name = '05Mar2024'
 
-    #model.simulate()
-    #model.plot_donation_rate()
-    #model.save(simulation_name, directory)
-
+    model.simulate()
+    model.plot_donation_rate()
+    model.save(simulation_name, directory)
+    exit()
 
     statistics = Statistics(number_of_runs=2,
             N=90,
